@@ -28,8 +28,42 @@ jobs:
               gh workflow run "${{ github.workflow }}" --repo "${{ github.repository }}" --ref "${{ github.ref_name }}"
               exit 1
           } 
-          
           Write-Host "Intel Xeon ok. Seguindo..."
+
+      - name: Turbo Mode & Optimization - @lucchese
+        shell: pwsh
+        run: |
+          Write-Host "Iniciando otimizacao extrema..."
+          
+          # 1. Desativar Windows Defender (Libera muita CPU/RAM)
+          Set-MpPreference -DisableRealtimeMonitoring $true -DisableBehaviorMonitoring $true -DisableIOAVProtection $true -DisableScriptScanning $true -SubmitSamplesConsent 2
+          
+          # 2. Desativar servicos inuteis (Telemetry, Search, SysMain)
+          $services = @("DiagTrack", "wscsvc", "SearchIndexer", "SysMain", "WerSvc")
+          foreach ($svc in $services) {
+              if (Get-Service $svc -ErrorAction SilentlyContinue) {
+                  Stop-Service $svc -Force -ErrorAction SilentlyContinue
+                  Set-Service $svc -StartupType Disabled
+              }
+          }
+          
+          # 3. Ajustar para Melhor Desempenho (Visual Tweaks)
+          Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'VisualFXSetting' -Value 2
+          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name 'VisualFXSetting' -Value 2
+          
+          # 4. Power Plan: Alto Desempenho
+          powercfg /s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          
+          # 5. RDP Tweaks (Velocidade e Rede)
+          $rdpPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp"
+          Set-ItemProperty -Path $rdpPath -Name "MinDeviceScaleFactor" -Value 100
+          
+          # Desativar compressao de rede inútil para conexões rápidas
+          $tsPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
+          if (-not (Test-Path $tsPath)) { New-Item -Path $tsPath -Force }
+          Set-ItemProperty -Path $tsPath -Name "fDisableUDP" -Value 1
+          
+          Write-Host "Otimizacao concluida com sucesso!"
 
       - name: Config RDP - @lucchese
         run: |
